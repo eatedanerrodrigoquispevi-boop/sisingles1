@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bolivia Tourism Registration System</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <!-- Leaflet & Geocoder -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -15,6 +18,35 @@
 
   <!-- Chart.js for Statistics -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // ⚠️ REEMPLAZA LOS VALORES DE ABAJO CON TUS CLAVES DE FIREBASE ⚠️
+    // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBq6koJ2jeNnVj7OHBi6A0IBI2bgNuzCt4",
+  authDomain: "bolivia-turismo-db.firebaseapp.com",
+  projectId: "bolivia-turismo-db",
+  storageBucket: "bolivia-turismo-db.firebasestorage.app",
+  messagingSenderId: "239295335530",
+  appId: "1:239295335530:web:d5a801809051ce55e4ce13",
+  measurementId: "G-Z56PHYQ5YL"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  </script>
 </head>
 <body class="bg-slate-100 font-sans min-h-screen flex text-slate-800">
 
@@ -25,7 +57,7 @@
         <span class="text-2xl">🇧🇴</span>
         <h1 class="text-lg font-bold tracking-wide text-sky-400">Bolivia Tourism</h1>
       </div>
-      <p class="text-xs text-slate-400 mt-1">Catalog & PWA Registry</p>
+      <p class="text-xs text-slate-400 mt-1">Catalog & Cloud Registry</p>
     </div>
 
     <nav class="flex-1 p-4 space-y-2">
@@ -48,7 +80,7 @@
 
     <div class="p-4 border-t border-slate-800 text-xs text-slate-400 text-center flex items-center justify-center gap-2">
       <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-      Offline Mode Active
+      Cloud Sync Active
     </div>
   </aside>
 
@@ -57,7 +89,6 @@
 
     <!-- SECTION 1: CONTROL PANEL -->
     <section id="tab-dashboard" class="tab-content space-y-6">
-      <!-- Salar de Uyuni Banner -->
       <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[220px] flex flex-col justify-end" 
            style="background-image: url('https://images.unsplash.com/photo-1589308078059-be1415eab4c3?q=80&w=1600&auto=format&fit=crop');">
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
@@ -68,7 +99,6 @@
         </div>
       </div>
 
-      <!-- Metric Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-sky-600 flex items-center justify-between">
           <div>
@@ -101,14 +131,13 @@
 
     <!-- SECTION 2: REGISTER -->
     <section id="tab-register" class="tab-content hidden space-y-6">
-      <!-- Copacabana / Lake Titicaca Banner -->
       <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[200px] flex flex-col justify-end"
            style="background-image: url('https://images.unsplash.com/photo-1518638150340-f706e86654de?q=80&w=1600&auto=format&fit=crop');">
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
         <div class="relative z-10 space-y-1">
           <span class="bg-emerald-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">New Registration</span>
           <h2 class="text-3xl font-extrabold">Register Tourist Attraction</h2>
-          <p class="text-slate-200 text-sm">Fill in the technical data of the destination for the local database</p>
+          <p class="text-slate-200 text-sm">Fill in the technical data of the destination for the cloud database</p>
         </div>
       </div>
 
@@ -215,8 +244,8 @@
           </div>
 
           <div class="md:col-span-2 pt-3">
-            <button type="submit" class="w-full bg-gradient-to-r from-sky-700 to-sky-800 hover:from-sky-800 hover:to-sky-900 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition">
-              💾 Save Full Record
+            <button type="submit" id="btnSubmit" class="w-full bg-gradient-to-r from-sky-700 to-sky-800 hover:from-sky-800 hover:to-sky-900 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition">
+              💾 Save to Cloud Database
             </button>
           </div>
         </form>
@@ -225,14 +254,13 @@
 
     <!-- SECTION 3: VIEW ATTRACTIONS -->
     <section id="tab-list" class="tab-content hidden space-y-6">
-      <!-- Amazon / Rurrenabaque Banner -->
       <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[200px] flex flex-col justify-end"
            style="background-image: url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=1600&auto=format&fit=crop');">
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
         <div class="relative z-10 space-y-1">
           <span class="bg-amber-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Active Catalog</span>
           <h2 class="text-3xl font-extrabold">Saved Attractions</h2>
-          <p class="text-slate-200 text-sm">Full list of technical data sheets in local database</p>
+          <p class="text-slate-200 text-sm">Full list of technical data sheets in cloud database</p>
         </div>
       </div>
 
@@ -241,7 +269,6 @@
 
     <!-- SECTION 4: STATISTICS -->
     <section id="tab-stats" class="tab-content hidden space-y-6">
-      <!-- Cordillera / Illimani Banner -->
       <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[200px] flex flex-col justify-end"
            style="background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1600&auto=format&fit=crop');">
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
@@ -253,7 +280,6 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Chart 1: By Department -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Attractions by Department</h3>
           <div class="h-64">
@@ -261,7 +287,6 @@
           </div>
         </div>
 
-        <!-- Chart 2: By Type -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
           <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Distribution by Attraction Type</h3>
           <div class="h-64 flex justify-center">
