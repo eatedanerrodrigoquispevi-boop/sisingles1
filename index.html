@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bolivia Tourism Registration System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+
+  <!-- Leaflet & Geocoder -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+  <!-- Chart.js for Statistics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-100 font-sans min-h-screen flex text-slate-800">
+
+  <!-- SIDEBAR -->
+  <aside class="w-64 bg-slate-900 text-white flex flex-col min-h-screen shadow-xl flex-shrink-0 z-20">
+    <div class="p-6 bg-gradient-to-r from-sky-900 to-slate-900 border-b border-slate-800">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🇧🇴</span>
+        <h1 class="text-lg font-bold tracking-wide text-sky-400">Bolivia Tourism</h1>
+      </div>
+      <p class="text-xs text-slate-400 mt-1">Catalog & PWA Registry</p>
+    </div>
+
+    <nav class="flex-1 p-4 space-y-2">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 bg-sky-600/30 text-sky-300 font-semibold border border-sky-500/30 transition shadow-sm">
+        <span>🏠</span> Control Panel
+      </button>
+      <button onclick="switchTab('register')" id="nav-register" class="nav-btn w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 transition">
+        <span>📝</span> Register Attraction
+      </button>
+      <button onclick="switchTab('list')" id="nav-list" class="nav-btn w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 transition">
+        <span>📂</span> View Attractions
+      </button>
+      <button onclick="switchTab('stats')" id="nav-stats" class="nav-btn w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 transition">
+        <span>📊</span> Statistics
+      </button>
+      <button onclick="switchTab('map-view')" id="nav-map-view" class="nav-btn w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 transition">
+        <span>🗺️</span> National Map
+      </button>
+    </nav>
+
+    <div class="p-4 border-t border-slate-800 text-xs text-slate-400 text-center flex items-center justify-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      Offline Mode Active
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 p-8 overflow-y-auto max-w-7xl mx-auto">
+
+    <!-- SECTION 1: CONTROL PANEL -->
+    <section id="tab-dashboard" class="tab-content space-y-6">
+      <!-- Salar de Uyuni Banner -->
+      <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[220px] flex flex-col justify-end" 
+           style="background-image: url('https://images.unsplash.com/photo-1589308078059-be1415eab4c3?q=80&w=1600&auto=format&fit=crop');">
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
+        <div class="relative z-10 space-y-2">
+          <span class="bg-sky-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Bolivia Tourism</span>
+          <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Control Panel</h2>
+          <p class="text-slate-200 text-sm md:text-base max-w-2xl">General management and monitoring of registered tourist attractions in the country.</p>
+        </div>
+      </div>
+
+      <!-- Metric Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-sky-600 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Attractions</p>
+            <p id="metric-total" class="text-4xl font-black text-slate-800 mt-1">0</p>
+          </div>
+          <div class="text-3xl p-4 bg-sky-50 text-sky-600 rounded-2xl">📍</div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-600 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Covered Departments</p>
+            <p id="metric-depts" class="text-4xl font-black text-slate-800 mt-1">0</p>
+          </div>
+          <div class="text-3xl p-4 bg-emerald-50 text-emerald-600 rounded-2xl">🗺️</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: NATIONAL MAP -->
+    <section id="tab-map-view" class="tab-content hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800">Geographic Map of Attractions</h2>
+          <p class="text-xs text-slate-500">Visualization of all georeferenced tourist spots in Bolivia.</p>
+        </div>
+        <div id="fullMap" class="w-full h-[550px] rounded-xl border border-slate-200 shadow-inner z-0"></div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: REGISTER -->
+    <section id="tab-register" class="tab-content hidden space-y-6">
+      <!-- Copacabana / Lake Titicaca Banner -->
+      <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[200px] flex flex-col justify-end"
+           style="background-image: url('https://images.unsplash.com/photo-1518638150340-f706e86654de?q=80&w=1600&auto=format&fit=crop');">
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
+        <div class="relative z-10 space-y-1">
+          <span class="bg-emerald-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">New Registration</span>
+          <h2 class="text-3xl font-extrabold">Register Tourist Attraction</h2>
+          <p class="text-slate-200 text-sm">Fill in the technical data of the destination for the local database</p>
+        </div>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+        <form id="attractionForm" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Attraction ID *</label>
+            <input type="text" id="attractionId" placeholder="E.g.: AT-001" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Name *</label>
+            <input type="text" id="name" placeholder="E.g.: National Paleontological Museum" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Attraction Type</label>
+            <input type="text" id="type" placeholder="E.g.: Cultural / Natural" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Department *</label>
+            <select id="department" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+              <option value="">Select a Department...</option>
+              <option value="Beni">Beni</option>
+              <option value="Chuquisaca">Chuquisaca</option>
+              <option value="Cochabamba">Cochabamba</option>
+              <option value="La Paz">La Paz</option>
+              <option value="Oruro">Oruro</option>
+              <option value="Pando">Pando</option>
+              <option value="Potosí">Potosí</option>
+              <option value="Santa Cruz">Santa Cruz</option>
+              <option value="Tarija">Tarija</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Municipality *</label>
+            <select id="municipality" required disabled class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none disabled:bg-slate-100 disabled:cursor-not-allowed transition">
+              <option value="">First select a department</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Location / Address</label>
+            <input type="text" id="location" placeholder="E.g.: City Center" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div class="md:col-span-2 space-y-2">
+            <div class="flex justify-between items-center">
+              <label class="block text-xs font-bold text-slate-600 uppercase">GPS Coordinates (Use search 🔍 or click on map)</label>
+              <button type="button" id="btnGeolocate" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-1.5 rounded-lg transition shadow-sm">
+                📍 Use my current location
+              </button>
+            </div>
+            <input type="text" id="gps" placeholder="Coordinates will be auto-filled" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl font-mono text-sm">
+            <div id="map" class="w-full h-64 rounded-xl border border-slate-200 shadow-inner z-0"></div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Historical Period / Era</label>
+            <input type="text" id="period" placeholder="E.g.: Pre-Columbian / Prehistory" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Opening Hours</label>
+            <input type="text" id="openingHours" placeholder="E.g.: Mon-Fri 08:00 - 16:00" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Admission Fee</label>
+            <input type="text" id="admissionFee" placeholder="E.g.: 10 BOB / Free" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Accessibility</label>
+            <input type="text" id="accessibility" placeholder="E.g.: Good / Wheelchair ramps available" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Contact Information</label>
+            <input type="text" id="contact" placeholder="E.g.: +591 70000000 / info@destination.bo" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Photograph (Attach Image)</label>
+            <input type="file" id="photo" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 cursor-pointer border border-slate-200 rounded-xl bg-slate-50">
+            <img id="photoPreview" class="mt-3 h-28 w-full object-cover rounded-xl hidden border border-slate-200" alt="Preview">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">QR Code / Digital Link</label>
+            <input type="text" id="qrCode" placeholder="E.g.: Link to PDF datasheet / Web" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Available Services</label>
+            <input type="text" id="services" placeholder="E.g.: Tour guide, parking, restaurant" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Description</label>
+            <textarea id="description" rows="3" placeholder="Detailed description of the destination..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition"></textarea>
+          </div>
+
+          <div class="md:col-span-2 pt-3">
+            <button type="submit" class="w-full bg-gradient-to-r from-sky-700 to-sky-800 hover:from-sky-800 hover:to-sky-900 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition">
+              💾 Save Full Record
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- SECTION 3: VIEW ATTRACTIONS -->
+    <section id="tab-list" class="tab-content hidden space-y-6">
+      <!-- Amazon / Rurrenabaque Banner -->
+      <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[200px] flex flex-col justify-end"
+           style="background-image: url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=1600&auto=format&fit=crop');">
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
+        <div class="relative z-10 space-y-1">
+          <span class="bg-amber-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Active Catalog</span>
+          <h2 class="text-3xl font-extrabold">Saved Attractions</h2>
+          <p class="text-slate-200 text-sm">Full list of technical data sheets in local database</p>
+        </div>
+      </div>
+
+      <div id="attractionsList" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    </section>
+
+    <!-- SECTION 4: STATISTICS -->
+    <section id="tab-stats" class="tab-content hidden space-y-6">
+      <!-- Cordillera / Illimani Banner -->
+      <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[200px] flex flex-col justify-end"
+           style="background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1600&auto=format&fit=crop');">
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
+        <div class="relative z-10 space-y-1">
+          <span class="bg-purple-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Metrics & Analytics</span>
+          <h2 class="text-3xl font-extrabold">Statistics and Reports</h2>
+          <p class="text-slate-200 text-sm">Graphical visualization of attraction distribution in Bolivia</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Chart 1: By Department -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Attractions by Department</h3>
+          <div class="h-64">
+            <canvas id="chartDept"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: By Type -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Distribution by Attraction Type</h3>
+          <div class="h-64 flex justify-center">
+            <canvas id="chartType"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
