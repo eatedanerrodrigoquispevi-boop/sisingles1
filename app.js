@@ -1,4 +1,4 @@
-// Municipios por Departamento en Bolivia
+// Municipalities by Department in Bolivia
 const municipiosPorDepartamento = {
   "Beni": ["Trinidad", "Rurrenabaque", "Riberalta", "Guayaramerín", "San Borja", "Santa Ana de Yacuma"],
   "Chuquisaca": ["Sucre", "Tarabuco", "Camargo", "Monteagudo", "Padilla", "Zudáñez"],
@@ -11,7 +11,7 @@ const municipiosPorDepartamento = {
   "Tarija": ["Tarija", "San Lorenzo", "Bermejo", "Villa Montes", "Yacuiba", "Padcaya"]
 };
 
-// Variables globales para mapas y gráficos
+// Global variables for maps and charts
 let fullMap = null;
 let fullMapMarkers = [];
 let map = null;
@@ -19,13 +19,13 @@ let marker = null;
 let chartDeptInstance = null;
 let chartTypeInstance = null;
 
-// 1. INICIALIZACIÓN
+// 1. INITIALIZATION
 document.addEventListener("DOMContentLoaded", () => {
   setupDepartmentChangeListener();
   setupPhotoPreview();
   setupGeolocateButton();
 
-  // Escuchador en tiempo real de Firebase
+  // Real-time listener for Firebase
   if (typeof db !== "undefined") {
     db.collection("attractions").onSnapshot((snapshot) => {
       const attractions = [];
@@ -46,11 +46,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Cargar pestaña por defecto
+  // Load default tab
   switchTab("dashboard");
 });
 
-// Obtener datos
+// Fetch data
 async function getAttractions() {
   if (typeof db === "undefined") return [];
   try {
@@ -64,7 +64,7 @@ async function getAttractions() {
   }
 }
 
-// 2. NAVEGACIÓN Y PESTAÑAS
+// 2. NAVIGATION AND TABS
 async function switchTab(tabId) {
   document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
   document.querySelectorAll(".nav-btn").forEach(el => {
@@ -100,7 +100,7 @@ async function switchTab(tabId) {
   }
 }
 
-// 3. MÉTRICAS
+// 3. METRICS
 function updateDashboardMetrics(list) {
   const totalElem = document.getElementById("metric-total");
   if (totalElem) totalElem.innerText = list.length;
@@ -110,7 +110,7 @@ function updateDashboardMetrics(list) {
   if (deptsElem) deptsElem.innerText = depts.size;
 }
 
-// 4. MAPA COMPLETO
+// 4. NATIONAL MAP
 function renderFullMap(list) {
   if (!fullMap) {
     fullMap = L.map("fullMap").setView([-16.2902, -63.5887], 5);
@@ -130,8 +130,8 @@ function renderFullMap(list) {
         m.bindPopup(`
           <div style="font-size:12px; font-family: sans-serif;">
             <b style="color:#0284c7; font-size: 14px;">${item.name}</b><br>
-            <span style="color: #64748b;">${item.type || 'Atracción'}</span><br>
-            <b>Ubicación:</b> ${item.municipality || ""}, ${item.department || ""}<br>
+            <span style="color: #64748b;">${item.type || 'Attraction'}</span><br>
+            <b>Location:</b> ${item.municipality || ""}, ${item.department || ""}<br>
             ${item.photo ? `<img src="${item.photo}" style="width:100%; max-height:80px; object-fit:cover; margin-top:5px; border-radius:6px;">` : ''}
           </div>
         `);
@@ -141,7 +141,7 @@ function renderFullMap(list) {
   });
 }
 
-// 5. MAPA DE REGISTRO
+// 5. REGISTRATION MAP
 function initRegisterMap() {
   const mapContainer = document.getElementById("map");
   if (!mapContainer) return;
@@ -186,7 +186,7 @@ function setupGeolocateButton() {
 
   btn.addEventListener("click", () => {
     if ("geolocation" in navigator) {
-      btn.innerText = "⌛ Obteniendo ubicación...";
+      btn.innerText = "⌛ Getting location...";
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat = position.coords.latitude;
@@ -196,20 +196,20 @@ function setupGeolocateButton() {
             map.setView(latlng, 14);
             setMapMarker(latlng);
           }
-          btn.innerText = "📍 Usa mi ubicación actual";
+          btn.innerText = "📍 Use my current location";
         },
         () => {
-          alert("No se pudo obtener tu ubicación actual.");
-          btn.innerText = "📍 Usa mi ubicación actual";
+          alert("Could not get your current location.");
+          btn.innerText = "📍 Use my current location";
         }
       );
     } else {
-      alert("Tu navegador no soporta geolocalización.");
+      alert("Your browser does not support geolocation.");
     }
   });
 }
 
-// 6. SELECTOR DINÁMICO DE MUNICIPIOS
+// 6. DYNAMIC MUNICIPALITY SELECTOR
 function setupDepartmentChangeListener() {
   const deptSelect = document.getElementById("department");
   const muniSelect = document.getElementById("municipality");
@@ -218,7 +218,7 @@ function setupDepartmentChangeListener() {
 
   deptSelect.addEventListener("change", (e) => {
     const selectedDept = e.target.value.trim();
-    muniSelect.innerHTML = '<option value="">Seleccione un Municipio...</option>';
+    muniSelect.innerHTML = '<option value="">Select a Municipality...</option>';
 
     if (selectedDept && municipiosPorDepartamento[selectedDept]) {
       muniSelect.disabled = false;
@@ -230,7 +230,7 @@ function setupDepartmentChangeListener() {
       });
     } else {
       muniSelect.disabled = true;
-      muniSelect.innerHTML = '<option value="">Primero seleccione un departamento</option>';
+      muniSelect.innerHTML = '<option value="">First select a department</option>';
     }
   });
 }
@@ -257,14 +257,14 @@ function setupPhotoPreview() {
   });
 }
 
-// 7. GUARDAR EN FIREBASE
+// 7. SAVE TO FIREBASE
 const form = document.getElementById("attractionForm");
 if (form) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const btn = document.getElementById("btnSubmit");
-    btn.innerText = "⌛ Guardando en la nube...";
+    btn.innerText = "⌛ Saving to cloud...";
     btn.disabled = true;
 
     try {
@@ -302,13 +302,13 @@ if (form) {
       await db.collection("attractions").add(data);
 
       resetForm();
-      alert("¡Atracción registrada con éxito en la base de datos!");
+      alert("Attraction registered successfully in database!");
       switchTab("list");
     } catch (error) {
-      console.error("Error al guardar: ", error);
-      alert("Error al guardar: " + error.message);
+      console.error("Error saving: ", error);
+      alert("Error saving: " + error.message);
     } finally {
-      btn.innerText = "💾 Guardar en la Base de Datos";
+      btn.innerText = "💾 Save to Database";
       btn.disabled = false;
     }
   });
@@ -324,7 +324,7 @@ function resetForm() {
   const muniSelect = document.getElementById("municipality");
   if (muniSelect) {
     muniSelect.disabled = true;
-    muniSelect.innerHTML = '<option value="">Primero seleccione un departamento</option>';
+    muniSelect.innerHTML = '<option value="">First select a department</option>';
   }
 
   if (marker && map) {
@@ -333,7 +333,7 @@ function resetForm() {
   }
 }
 
-// 8. LISTA DE ATRACCIONES
+// 8. LIST OF ATTRACTIONS
 function renderAttractionsList(list) {
   const container = document.getElementById("attractionsList");
   if (!container) return;
@@ -342,7 +342,7 @@ function renderAttractionsList(list) {
     container.innerHTML = `
       <div class="md:col-span-2 text-center py-12 bg-white rounded-2xl border border-slate-200">
         <p class="text-4xl mb-2">📂</p>
-        <p class="text-slate-500 font-medium">Aún no hay atracciones registradas en la base de datos.</p>
+        <p class="text-slate-500 font-medium">No attractions registered yet in the database.</p>
       </div>
     `;
     return;
@@ -351,7 +351,7 @@ function renderAttractionsList(list) {
   container.innerHTML = list.map(item => `
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
       <div>
-        ${item.photo ? `<img src="${item.photo}" class="w-full h-48 object-cover" alt="${item.name}">` : `<div class="w-full h-32 bg-slate-100 flex items-center justify-center text-slate-400 text-sm">Sin fotografía</div>`}
+        ${item.photo ? `<img src="${item.photo}" class="w-full h-48 object-cover" alt="${item.name}">` : `<div class="w-full h-32 bg-slate-100 flex items-center justify-center text-slate-400 text-sm">No photo available</div>`}
         
         <div class="p-6 space-y-3">
           <div class="flex justify-between items-start gap-2">
@@ -364,21 +364,21 @@ function renderAttractionsList(list) {
 
           <p class="text-xs text-slate-500 font-medium">📍 ${item.municipality || 'N/A'}, ${item.department || 'N/A'} ${item.location ? `— ${item.location}` : ''}</p>
           
-          <p class="text-sm text-slate-600 line-clamp-3">${item.description || 'Sin descripción disponible.'}</p>
+          <p class="text-sm text-slate-600 line-clamp-3">${item.description || 'No description available.'}</p>
 
           <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-600">
-            <div>⏰ <b>Horario:</b> ${item.openingHours || 'N/A'}</div>
-            <div>💰 <b>Precio:</b> ${item.admissionFee || 'N/A'}</div>
-            <div>♿ <b>Acceso:</b> ${item.accessibility || 'N/A'}</div>
-            <div>📞 <b>Contacto:</b> ${item.contact || 'N/A'}</div>
+            <div>⏰ <b>Hours:</b> ${item.openingHours || 'N/A'}</div>
+            <div>💰 <b>Fee:</b> ${item.admissionFee || 'N/A'}</div>
+            <div>♿ <b>Access:</b> ${item.accessibility || 'N/A'}</div>
+            <div>📞 <b>Contact:</b> ${item.contact || 'N/A'}</div>
           </div>
         </div>
       </div>
 
       <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-        <span class="text-xs font-mono text-slate-400">${item.gps || 'Sin GPS'}</span>
+        <span class="text-xs font-mono text-slate-400">${item.gps || 'No GPS'}</span>
         <button onclick="deleteAttraction('${item.id}')" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 font-semibold px-3 py-1.5 rounded-lg transition">
-          🗑️ Eliminar
+          🗑️ Delete
         </button>
       </div>
     </div>
@@ -386,12 +386,12 @@ function renderAttractionsList(list) {
 }
 
 async function deleteAttraction(id) {
-  if (confirm("¿Estás seguro de eliminar este registro de la nube?")) {
+  if (confirm("Are you sure you want to delete this record from the cloud?")) {
     await db.collection("attractions").doc(id).delete();
   }
 }
 
-// 9. ESTADÍSTICAS
+// 9. STATISTICS
 function renderStatistics(list) {
   const deptCounts = {};
   const typeCounts = {};
@@ -413,7 +413,7 @@ function renderStatistics(list) {
       data: {
         labels: Object.keys(deptCounts),
         datasets: [{
-          label: "Atracciones",
+          label: "Attractions",
           data: Object.values(deptCounts),
           backgroundColor: "#0284c7",
           borderRadius: 8
