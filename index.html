@@ -20,15 +20,28 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script>
-    // ⚠️ REPLACE WITH YOUR FIREBASE KEYS ⚠️
-    const firebaseConfig = {
-      apiKey: "TU_API_KEY",
-      authDomain: "bolivia-turismo-db.firebaseapp.com",
-      projectId: "bolivia-turismo-db",
-      storageBucket: "bolivia-turismo-db.appspot.com",
-      messagingSenderId: "TU_SENDER_ID",
-      appId: "TU_APP_ID"
-    };
+    // ⚠️ REEMPLAZA LOS VALORES DE ABAJO CON TUS CLAVES DE FIREBASE ⚠️
+    // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBq6koJ2jeNnVj7OHBi6A0IBI2bgNuzCt4",
+  authDomain: "bolivia-turismo-db.firebaseapp.com",
+  projectId: "bolivia-turismo-db",
+  storageBucket: "bolivia-turismo-db.firebasestorage.app",
+  messagingSenderId: "239295335530",
+  appId: "1:239295335530:web:d5a801809051ce55e4ce13",
+  measurementId: "G-Z56PHYQ5YL"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
@@ -44,12 +57,12 @@
         <span class="text-2xl">🇧🇴</span>
         <h1 class="text-lg font-bold tracking-wide text-sky-400">Bolivia Tourism</h1>
       </div>
-      <p class="text-xs text-slate-400 mt-1">Cloud Registry & Catalog</p>
+      <p class="text-xs text-slate-400 mt-1">Catalog & Cloud Registry</p>
     </div>
 
     <nav class="flex-1 p-4 space-y-2">
       <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 bg-sky-600/30 text-sky-300 font-semibold border border-sky-500/30 transition shadow-sm">
-        <span>🏠</span> Dashboard
+        <span>🏠</span> Control Panel
       </button>
       <button onclick="switchTab('register')" id="nav-register" class="nav-btn w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 text-slate-300 hover:bg-slate-800 transition">
         <span>📝</span> Register Attraction
@@ -74,15 +87,15 @@
   <!-- MAIN CONTENT -->
   <main class="flex-1 p-8 overflow-y-auto max-w-7xl mx-auto">
 
-    <!-- SECTION 1: DASHBOARD -->
+    <!-- SECTION 1: CONTROL PANEL -->
     <section id="tab-dashboard" class="tab-content space-y-6">
       <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[220px] flex flex-col justify-end" 
            style="background-image: url('https://images.unsplash.com/photo-1589308078059-be1415eab4c3?q=80&w=1600&auto=format&fit=crop');">
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
         <div class="relative z-10 space-y-2">
           <span class="bg-sky-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Bolivia Tourism</span>
-          <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Dashboard</h2>
-          <p class="text-slate-200 text-sm md:text-base max-w-2xl">General management and monitoring of registered tourist spots in the country.</p>
+          <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight">Control Panel</h2>
+          <p class="text-slate-200 text-sm md:text-base max-w-2xl">General management and monitoring of registered tourist attractions in the country.</p>
         </div>
       </div>
 
@@ -112,7 +125,7 @@
           <h2 class="text-2xl font-bold text-slate-800">Geographic Map of Attractions</h2>
           <p class="text-xs text-slate-500">Visualization of all georeferenced tourist spots in Bolivia.</p>
         </div>
-        <div id="fullMap" class="w-full h-[550px] rounded-xl border border-slate-200 shadow-inner z-0" style="min-height: 500px;"></div>
+        <div id="fullMap" class="w-full h-[550px] rounded-xl border border-slate-200 shadow-inner z-0"></div>
       </div>
     </section>
 
@@ -124,25 +137,25 @@
         <div class="relative z-10 space-y-1">
           <span class="bg-emerald-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">New Registration</span>
           <h2 class="text-3xl font-extrabold">Register Tourist Attraction</h2>
-          <p class="text-slate-200 text-sm">Fill in the technical sheet of the destination to save it in the database</p>
+          <p class="text-slate-200 text-sm">Fill in the technical data of the destination for the cloud database</p>
         </div>
       </div>
 
       <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
         <form id="attractionForm" class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Attraction Identification *</label>
-            <input type="text" id="attractionId" placeholder="Example: AT-001" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Attraction ID *</label>
+            <input type="text" id="attractionId" placeholder="E.g.: AT-001" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Name *</label>
-            <input type="text" id="name" placeholder="Example: National Paleontological Museum" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="name" placeholder="E.g.: National Paleontological Museum" required class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Attraction Type</label>
-            <input type="text" id="type" placeholder="Example: Cultural / Natural" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="type" placeholder="E.g.: Cultural / Natural" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div>
@@ -170,7 +183,7 @@
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Location / Address</label>
-            <input type="text" id="location" placeholder="Example: Downtown" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="location" placeholder="E.g.: City Center" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div class="md:col-span-2 space-y-2">
@@ -180,33 +193,33 @@
                 📍 Use my current location
               </button>
             </div>
-            <input type="text" id="gps" placeholder="Coordinates will be filled automatically." readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl font-mono text-sm">
-            <div id="map" class="w-full h-64 rounded-xl border border-slate-200 shadow-inner z-0" style="min-height: 280px;"></div>
+            <input type="text" id="gps" placeholder="Coordinates will be auto-filled" readonly class="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl font-mono text-sm">
+            <div id="map" class="w-full h-64 rounded-xl border border-slate-200 shadow-inner z-0"></div>
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Historical Period / Era</label>
-            <input type="text" id="period" placeholder="Example: Pre-Columbian / Prehistory" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="period" placeholder="E.g.: Pre-Columbian / Prehistory" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Opening Hours</label>
-            <input type="text" id="openingHours" placeholder="Example: Monday to Friday from 08:00 to 16:00" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="openingHours" placeholder="E.g.: Mon-Fri 08:00 - 16:00" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Admission Fee</label>
-            <input type="text" id="admissionFee" placeholder="Example: 10 BOB / Free" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="admissionFee" placeholder="E.g.: 10 BOB / Free" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Accessibility</label>
-            <input type="text" id="accessibility" placeholder="Example: Good / Wheelchair ramp" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="accessibility" placeholder="E.g.: Good / Wheelchair ramps available" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Contact Information</label>
-            <input type="text" id="contact" placeholder="Example: +591 70000000" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="contact" placeholder="E.g.: +591 70000000 / info@destination.bo" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div>
@@ -217,12 +230,12 @@
 
           <div>
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">QR Code / Digital Link</label>
-            <input type="text" id="qrCode" placeholder="Example: Link to PDF or Web" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="qrCode" placeholder="E.g.: Link to PDF datasheet / Web" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div class="md:col-span-2">
             <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Available Services</label>
-            <input type="text" id="services" placeholder="Example: Tour guide, parking, restaurant" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
+            <input type="text" id="services" placeholder="E.g.: Tour guide, parking, restaurant" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-sky-500 transition">
           </div>
 
           <div class="md:col-span-2">
@@ -232,26 +245,38 @@
 
           <div class="md:col-span-2 pt-3">
             <button type="submit" id="btnSubmit" class="w-full bg-gradient-to-r from-sky-700 to-sky-800 hover:from-sky-800 hover:to-sky-900 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition">
-              💾 Save to Database
+              💾 Save to Cloud Database
             </button>
           </div>
         </form>
       </div>
     </section>
 
-    <!-- SECTION 3: VIEW ATTRACTIONS -->
+   <!-- SECTION 3: VIEW ATTRACTIONS -->
     <section id="tab-list" class="tab-content hidden space-y-6">
-      <div class="relative rounded-2xl overflow-hidden shadow-lg bg-cover bg-center p-8 text-white min-h-[200px] flex flex-col justify-end"
-           style="background-image: url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=1600&auto=format&fit=crop');">
-        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
-        <div class="relative z-10 space-y-1">
-          <span class="bg-amber-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Active Catalog</span>
-          <h2 class="text-3xl font-extrabold">Saved Attractions</h2>
-          <p class="text-slate-200 text-sm">Full list of registered technical sheets</p>
+      
+      <!-- Vista Principal: Buscador y Tarjetas de Atracciones -->
+      <div id="catalogMainView" class="space-y-6">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-3">
+          <span class="text-xl">🔍</span>
+          <input type="text" id="searchBar" placeholder="Buscar atracciones registradas por nombre, municipio o tipo..." class="w-full bg-transparent outline-none text-sm text-slate-700">
+        </div>
+
+        <!-- Grid de tarjetas simples (solo muestra foto, nombre y departamento) -->
+        <div id="attractionsList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
+      </div>
+
+      <!-- Vista Detallada (Aparece al hacer clic sobre una tarjeta) -->
+      <div id="attractionDetailView" class="hidden bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+        <button onclick="closeDetailView()" class="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold px-4 py-2 rounded-xl transition">
+          ⬅️ Volver al Catálogo
+        </button>
+
+        <div id="detailContent" class="space-y-6">
+          <!-- Se completa dinámicamente con JS -->
         </div>
       </div>
 
-      <div id="attractionsList" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
     </section>
 
     <!-- SECTION 4: STATISTICS -->
@@ -261,8 +286,8 @@
         <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/60 to-transparent"></div>
         <div class="relative z-10 space-y-1">
           <span class="bg-purple-500/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Metrics & Analytics</span>
-          <h2 class="text-3xl font-extrabold">Statistics & Reports</h2>
-          <p class="text-slate-200 text-sm">Graphical visualization of attractions in Bolivia</p>
+          <h2 class="text-3xl font-extrabold">Statistics and Reports</h2>
+          <p class="text-slate-200 text-sm">Graphical visualization of attraction distribution in Bolivia</p>
         </div>
       </div>
 
