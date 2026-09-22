@@ -380,14 +380,16 @@ function resetForm() {
   if (btnSubmit) btnSubmit.innerText = "💾 Save Attraction";
 }
 
-// 7. LISTA DE ATRACCIONES CON BUSCADOR
+// 7. LISTA DE ATRACCIONES (Muestra todos los registros de la base de datos sin excepción)
 function renderAttractionsList(list) {
   const container = document.getElementById("attractionsList");
   const searchInput = document.getElementById("searchBar");
   if (!container) return;
 
-  allAttractionsCache = list || [];
+  // Garantiza que la lista en memoria siempre tenga los datos recibidos
+  allAttractionsCache = list && list.length > 0 ? list : allAttractionsCache;
 
+  // Escuchar el buscador
   if (searchInput && !searchInput.dataset.listening) {
     searchInput.dataset.listening = "true";
     searchInput.addEventListener("input", (e) => {
@@ -414,18 +416,29 @@ function displayCards(list) {
     container.innerHTML = `
       <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200">
         <p class="text-4xl mb-2">📂</p>
-        <p class="text-slate-500 font-medium">No attractions found.</p>
+        <p class="text-slate-500 font-medium">No se encontraron atracciones para mostrar.</p>
       </div>
     `;
     return;
   }
 
   container.innerHTML = list.map(item => {
-    const nameVal = item.name || item.nombre || "Sin Nombre";
+    // Busca cualquier variante de nombre que exista en la base de datos
+    const nameVal = item.name || item.nombre || item.attractionName || "Atracción sin nombre";
     const typeVal = item.type || item.tipo || "";
-    const muniVal = item.municipality || item.municipio || "N/A";
-    const deptVal = item.department || item.departamento || "N/A";
-    const photoVal = item.photo || item.foto || "";
+    const muniVal = item.municipality || item.municipio || "";
+    const deptVal = item.department || item.departamento || "";
+    const photoVal = item.photo || item.foto || item.imageUrl || "";
+
+    // Construye la ubicación
+    let locationText = "Ubicación no especificada";
+    if (muniVal && deptVal) {
+      locationText = `${muniVal}, ${deptVal}`;
+    } else if (deptVal) {
+      locationText = deptVal;
+    } else if (muniVal) {
+      locationText = muniVal;
+    }
 
     return `
       <div onclick="openDetailView('${item.id}')" class="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer overflow-hidden flex flex-col justify-between">
@@ -433,12 +446,12 @@ function displayCards(list) {
           <div class="h-44 w-full bg-slate-100 relative overflow-hidden">
             ${photoVal 
               ? `<img src="${photoVal}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${nameVal}">` 
-              : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">No Image Available</div>`}
+              : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">Sin Fotografía</div>`}
             ${typeVal ? `<span class="absolute top-3 right-3 bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">${typeVal}</span>` : ''}
           </div>
           <div class="p-4">
             <h3 class="text-lg font-bold text-slate-800 group-hover:text-sky-600 transition line-clamp-1">${nameVal}</h3>
-            <p class="text-xs text-slate-400 mt-1">📍 ${muniVal}, ${deptVal}</p>
+            <p class="text-xs text-slate-400 mt-1">📍 ${locationText}</p>
           </div>
         </div>
       </div>
