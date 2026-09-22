@@ -1,4 +1,4 @@
-// Municipalities by Department in Bolivia
+// Municipalities by Department
 const municipiosPorDepartamento = {
   "Beni": ["Trinidad", "Rurrenabaque", "Riberalta", "Guayaramerín", "San Borja", "Santa Ana de Yacuma"],
   "Chuquisaca": ["Sucre", "Tarabuco", "Camargo", "Monteagudo", "Padilla", "Zudáñez"],
@@ -11,7 +11,6 @@ const municipiosPorDepartamento = {
   "Tarija": ["Tarija", "San Lorenzo", "Bermejo", "Villa Montes", "Yacuiba", "Padcaya"]
 };
 
-// Global variables for maps and charts
 let fullMap = null;
 let fullMapMarkers = [];
 let map = null;
@@ -19,21 +18,55 @@ let marker = null;
 let chartDeptInstance = null;
 let chartTypeInstance = null;
 
+let currentEditingId = null;
+let allAttractionsCache = [];
+
+// Identificador único para el creador (Guardado localmente)
+function getUserId() {
+  let uid = localStorage.getItem("bolivia_tour_uid");
+  if (!uid) {
+    uid = "user_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
+    localStorage.setItem("bolivia_tour_uid", uid);
+  }
+  return uid;
+}
+
+const currentUserId = getUserId();
+
+// DETECT NETWORK ONLINE/OFFLINE STATUS
+function updateOnlineStatus() {
+  const dot = document.getElementById("connectionStatusDot");
+  const text = document.getElementById("connectionStatusText");
+  
+  if (navigator.onLine) {
+    if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+    if (text) text.innerText = "Sincronización Activa";
+  } else {
+    if (dot) dot.className = "w-2 h-2 rounded-full bg-amber-500";
+    if (text) text.innerText = "Modo Offline (Almacenamiento Local)";
+  }
+}
+
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+
 // 1. INITIALIZATION
 document.addEventListener("DOMContentLoaded", () => {
+  updateOnlineStatus();
   setupDepartmentChangeListener();
   setupPhotoPreview();
   setupGeolocateButton();
 
-  // Real-time listener for Firebase
   if (typeof db !== "undefined") {
-    db.collection("attractions").onSnapshot((snapshot) => {
+    db.collection("attractions").onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
       const attractions = [];
       snapshot.forEach(doc => {
         attractions.push({ id: doc.id, ...doc.data() });
       });
 
+      allAttractionsCache = attractions;
       updateDashboardMetrics(attractions);
+
       if (!document.getElementById("tab-map-view").classList.contains("hidden")) {
         renderFullMap(attractions);
       }
@@ -46,11 +79,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Load default tab
   switchTab("dashboard");
 });
 
-// Fetch data
+// GET ATTRACTIONS FROM FIRESTORE
 async function getAttractions() {
   if (typeof db === "undefined") return [];
   try {
@@ -59,12 +91,12 @@ async function getAttractions() {
     snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
     return list;
   } catch(e) {
-    console.error(e);
+    console.error("Error al leer caché:", e);
     return [];
   }
 }
 
-// 2. NAVIGATION AND TABS
+// 2. TABS NAVIGATION
 async function switchTab(tabId) {
   document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
   document.querySelectorAll(".nav-btn").forEach(el => {
@@ -82,6 +114,7 @@ async function switchTab(tabId) {
   }
 
   const list = await getAttractions();
+  allAttractionsCache = list;
 
   if (tabId === "dashboard") {
     updateDashboardMetrics(list);
@@ -94,13 +127,14 @@ async function switchTab(tabId) {
       setTimeout(() => { map.invalidateSize(); }, 200);
     }
   } else if (tabId === "list") {
+    closeDetailView();
     renderAttractionsList(list);
   } else if (tabId === "stats") {
     renderStatistics(list);
   }
 }
 
-// 3. METRICS
+// 3. DASHBOARD METRICS
 function updateDashboardMetrics(list) {
   const totalElem = document.getElementById("metric-total");
   if (totalElem) totalElem.innerText = list.length;
@@ -110,7 +144,7 @@ function updateDashboardMetrics(list) {
   if (deptsElem) deptsElem.innerText = depts.size;
 }
 
-// 4. NATIONAL MAP
+// 4. MAPS
 function renderFullMap(list) {
   if (!fullMap) {
     fullMap = L.map("fullMap").setView([-16.2902, -63.5887], 5);
@@ -130,8 +164,8 @@ function renderFullMap(list) {
         m.bindPopup(`
           <div style="font-size:12px; font-family: sans-serif;">
             <b style="color:#0284c7; font-size: 14px;">${item.name}</b><br>
-            <span style="color: #64748b;">${item.type || 'Attraction'}</span><br>
-            <b>Location:</b> ${item.municipality || ""}, ${item.department || ""}<br>
+            <span style="color: #64748b;">${item.type || 'Atracción'}</span><br>
+            <b>Ubicación:</b> ${item.municipality || ""}, ${item.department || ""}<br>
             ${item.photo ? `<img src="${item.photo}" style="width:100%; max-height:80px; object-fit:cover; margin-top:5px; border-radius:6px;">` : ''}
           </div>
         `);
@@ -141,26 +175,12 @@ function renderFullMap(list) {
   });
 }
 
-// 5. REGISTRATION MAP
 function initRegisterMap() {
   const mapContainer = document.getElementById("map");
   if (!mapContainer) return;
 
   map = L.map("map").setView([-16.2902, -63.5887], 5);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
-
-  if (L.Control && L.Control.geocoder) {
-    L.Control.geocoder({ defaultMarkGeocode: false })
-    .on('markgeocode', function(e) {
-      const bbox = e.geocode.bbox;
-      const poly = L.polygon([
-        bbox.getSouthEast(), bbox.getNorthEast(), bbox.getNorthWest(), bbox.getSouthWest()
-      ]);
-      map.fitBounds(poly.getBounds());
-      setMapMarker(e.geocode.center);
-    })
-    .addTo(map);
-  }
 
   map.on("click", (e) => {
     setMapMarker(e.latlng);
@@ -186,7 +206,7 @@ function setupGeolocateButton() {
 
   btn.addEventListener("click", () => {
     if ("geolocation" in navigator) {
-      btn.innerText = "⌛ Getting location...";
+      btn.innerText = "⌛ Obteniendo GPS...";
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat = position.coords.latitude;
@@ -196,20 +216,21 @@ function setupGeolocateButton() {
             map.setView(latlng, 14);
             setMapMarker(latlng);
           }
-          btn.innerText = "📍 Use my current location";
+          btn.innerText = "📍 Usar GPS del dispositivo";
         },
         () => {
-          alert("Could not get your current location.");
-          btn.innerText = "📍 Use my current location";
-        }
+          alert("No se pudo obtener la ubicación GPS.");
+          btn.innerText = "📍 Usar GPS del dispositivo";
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
       );
     } else {
-      alert("Your browser does not support geolocation.");
+      alert("El dispositivo no soporta GPS.");
     }
   });
 }
 
-// 6. DYNAMIC MUNICIPALITY SELECTOR
+// 5. MUNICIPALITY SELECTOR & PHOTO PREVIEW
 function setupDepartmentChangeListener() {
   const deptSelect = document.getElementById("department");
   const muniSelect = document.getElementById("municipality");
@@ -218,7 +239,7 @@ function setupDepartmentChangeListener() {
 
   deptSelect.addEventListener("change", (e) => {
     const selectedDept = e.target.value.trim();
-    muniSelect.innerHTML = '<option value="">Select a Municipality...</option>';
+    muniSelect.innerHTML = '<option value="">Selecciona un Municipio...</option>';
 
     if (selectedDept && municipiosPorDepartamento[selectedDept]) {
       muniSelect.disabled = false;
@@ -230,7 +251,7 @@ function setupDepartmentChangeListener() {
       });
     } else {
       muniSelect.disabled = true;
-      muniSelect.innerHTML = '<option value="">First select a department</option>';
+      muniSelect.innerHTML = '<option value="">Primero selecciona un departamento</option>';
     }
   });
 }
@@ -247,29 +268,27 @@ function setupPhotoPreview() {
       const reader = new FileReader();
       reader.onload = (e) => {
         preview.src = e.target.result;
+        preview.dataset.currentSrc = e.target.result;
         preview.classList.remove("hidden");
       };
       reader.readAsDataURL(file);
-    } else {
-      preview.src = "";
-      preview.classList.add("hidden");
     }
   });
 }
 
-// 7. SAVE TO FIREBASE
+// 6. GUARDAR O EDITAR REGISTRO
 const form = document.getElementById("attractionForm");
 if (form) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const btn = document.getElementById("btnSubmit");
-    btn.innerText = "⌛ Saving to cloud...";
+    btn.innerText = "⌛ Guardando...";
     btn.disabled = true;
 
     try {
       const photoInput = document.getElementById("photo");
-      let photoBase64 = "";
+      let photoBase64 = document.getElementById("photoPreview")?.dataset?.currentSrc || "";
 
       if (photoInput.files && photoInput.files[0]) {
         photoBase64 = await new Promise((resolve) => {
@@ -296,19 +315,27 @@ if (form) {
         qrCode: document.getElementById("qrCode").value,
         services: document.getElementById("services").value,
         description: document.getElementById("description").value,
-        createdAt: new Date().toISOString()
+        updatedAt: new Date().toISOString()
       };
 
-      await db.collection("attractions").add(data);
+      if (currentEditingId) {
+        await db.collection("attractions").doc(currentEditingId).update(data);
+        alert("¡Atracción actualizada con éxito!");
+        currentEditingId = null;
+      } else {
+        data.createdAt = new Date().toISOString();
+        data.ownerId = currentUserId; // Guarda la autoría
+        await db.collection("attractions").add(data);
+        alert("¡Atracción registrada con éxito!");
+      }
 
       resetForm();
-      alert("Attraction registered successfully in database!");
       switchTab("list");
     } catch (error) {
-      console.error("Error saving: ", error);
-      alert("Error saving: " + error.message);
+      console.error("Error al guardar: ", error);
+      alert("Error al guardar: " + error.message);
     } finally {
-      btn.innerText = "💾 Save to Database";
+      btn.innerText = "💾 Guardar Atracción";
       btn.disabled = false;
     }
   });
@@ -318,80 +345,200 @@ function resetForm() {
   const form = document.getElementById("attractionForm");
   if (form) form.reset();
   
+  currentEditingId = null;
   const preview = document.getElementById("photoPreview");
-  if (preview) preview.classList.add("hidden");
+  if (preview) {
+    preview.classList.add("hidden");
+    delete preview.dataset.currentSrc;
+  }
 
   const muniSelect = document.getElementById("municipality");
   if (muniSelect) {
     muniSelect.disabled = true;
-    muniSelect.innerHTML = '<option value="">First select a department</option>';
+    muniSelect.innerHTML = '<option value="">Primero selecciona un departamento</option>';
   }
 
   if (marker && map) {
     map.removeLayer(marker);
     marker = null;
   }
+
+  const btnSubmit = document.getElementById("btnSubmit");
+  if (btnSubmit) btnSubmit.innerText = "💾 Guardar Atracción";
 }
 
-// 8. LIST OF ATTRACTIONS
+// 7. LISTA DE ATRACCIONES (BUSCADOR + TARJETAS LIMPIAS)
 function renderAttractionsList(list) {
+  const container = document.getElementById("attractionsList");
+  const searchInput = document.getElementById("searchBar");
+  if (!container) return;
+
+  if (searchInput && !searchInput.dataset.listening) {
+    searchInput.dataset.listening = "true";
+    searchInput.addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      const filtered = allAttractionsCache.filter(item => 
+        (item.name && item.name.toLowerCase().includes(query)) ||
+        (item.municipality && item.municipality.toLowerCase().includes(query)) ||
+        (item.type && item.type.toLowerCase().includes(query))
+      );
+      displayCards(filtered);
+    });
+  }
+
+  displayCards(list);
+}
+
+function displayCards(list) {
   const container = document.getElementById("attractionsList");
   if (!container) return;
 
   if (list.length === 0) {
     container.innerHTML = `
-      <div class="md:col-span-2 text-center py-12 bg-white rounded-2xl border border-slate-200">
+      <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200">
         <p class="text-4xl mb-2">📂</p>
-        <p class="text-slate-500 font-medium">No attractions registered yet in the database.</p>
+        <p class="text-slate-500 font-medium">No se encontraron atracciones.</p>
       </div>
     `;
     return;
   }
 
   container.innerHTML = list.map(item => `
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
+    <div onclick="openDetailView('${item.id}')" class="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer overflow-hidden flex flex-col justify-between">
       <div>
-        ${item.photo ? `<img src="${item.photo}" class="w-full h-48 object-cover" alt="${item.name}">` : `<div class="w-full h-32 bg-slate-100 flex items-center justify-center text-slate-400 text-sm">No photo available</div>`}
-        
-        <div class="p-6 space-y-3">
-          <div class="flex justify-between items-start gap-2">
-            <div>
-              <span class="bg-sky-100 text-sky-800 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">${item.attractionId || 'AT-000'}</span>
-              <h3 class="text-xl font-bold text-slate-800 mt-1">${item.name}</h3>
-            </div>
-            <span class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-lg border border-emerald-200 shrink-0">${item.type || 'General'}</span>
-          </div>
-
-          <p class="text-xs text-slate-500 font-medium">📍 ${item.municipality || 'N/A'}, ${item.department || 'N/A'} ${item.location ? `— ${item.location}` : ''}</p>
-          
-          <p class="text-sm text-slate-600 line-clamp-3">${item.description || 'No description available.'}</p>
-
-          <div class="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100 text-slate-600">
-            <div>⏰ <b>Hours:</b> ${item.openingHours || 'N/A'}</div>
-            <div>💰 <b>Fee:</b> ${item.admissionFee || 'N/A'}</div>
-            <div>♿ <b>Access:</b> ${item.accessibility || 'N/A'}</div>
-            <div>📞 <b>Contact:</b> ${item.contact || 'N/A'}</div>
-          </div>
+        <div class="h-44 w-full bg-slate-100 relative overflow-hidden">
+          ${item.photo 
+            ? `<img src="${item.photo}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${item.name}">` 
+            : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">Sin Fotografía</div>`}
+          ${item.type ? `<span class="absolute top-3 right-3 bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">${item.type}</span>` : ''}
         </div>
-      </div>
-
-      <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-        <span class="text-xs font-mono text-slate-400">${item.gps || 'No GPS'}</span>
-        <button onclick="deleteAttraction('${item.id}')" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 font-semibold px-3 py-1.5 rounded-lg transition">
-          🗑️ Delete
-        </button>
+        <div class="p-4">
+          <h3 class="text-lg font-bold text-slate-800 group-hover:text-sky-600 transition line-clamp-1">${item.name}</h3>
+          <p class="text-xs text-slate-400 mt-1">📍 ${item.municipality || 'N/A'}, ${item.department || 'N/A'}</p>
+        </div>
       </div>
     </div>
   `).join("");
 }
 
+// 8. VISTA DETALLADA AL HACER CLIC
+function openDetailView(id) {
+  const item = allAttractionsCache.find(a => a.id === id);
+  if (!item) return;
+
+  const mainView = document.getElementById("catalogMainView");
+  const detailView = document.getElementById("attractionDetailView");
+  const detailContent = document.getElementById("detailContent");
+
+  const isOwner = item.ownerId === currentUserId;
+
+  detailContent.innerHTML = `
+    <div class="space-y-4">
+      ${item.photo ? `<img src="${item.photo}" class="w-full max-h-80 object-cover rounded-2xl border border-slate-200" alt="${item.name}">` : ''}
+      
+      <div class="flex justify-between items-start gap-4">
+        <div>
+          <span class="bg-sky-100 text-sky-800 text-xs font-bold px-3 py-1 rounded-full uppercase">${item.attractionId || 'AT-000'}</span>
+          <h2 class="text-3xl font-extrabold text-slate-900 mt-2">${item.name}</h2>
+          <p class="text-sm text-slate-500 mt-1">📍 ${item.municipality || 'N/A'}, ${item.department || 'N/A'} ${item.location ? `— ${item.location}` : ''}</p>
+        </div>
+
+        ${isOwner ? `
+          <div class="flex gap-2">
+            <button onclick="editAttraction('${item.id}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold px-3 py-2 rounded-xl transition">
+              ✏️ Editar
+            </button>
+            <button onclick="deleteAttraction('${item.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-2 rounded-xl transition">
+              🗑️ Eliminar
+            </button>
+          </div>
+        ` : ''}
+      </div>
+
+      <p class="text-slate-700 text-base leading-relaxed">${item.description || 'Sin descripción detallada.'}</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100 text-slate-700">
+        <div><b>Tipo:</b> ${item.type || 'N/A'}</div>
+        <div><b>Época Histórica:</b> ${item.period || 'N/A'}</div>
+        <div>⏰ <b>Horarios:</b> ${item.openingHours || 'N/A'}</div>
+        <div>💰 <b>Costo:</b> ${item.admissionFee || 'N/A'}</div>
+        <div>♿ <b>Accesibilidad:</b> ${item.accessibility || 'N/A'}</div>
+        <div>📞 <b>Contacto:</b> ${item.contact || 'N/A'}</div>
+        <div>🛠️ <b>Servicios:</b> ${item.services || 'N/A'}</div>
+        <div>🌐 <b>GPS:</b> ${item.gps || 'N/A'}</div>
+      </div>
+    </div>
+  `;
+
+  mainView.classList.add("hidden");
+  detailView.classList.remove("hidden");
+}
+
+function closeDetailView() {
+  const mainView = document.getElementById("catalogMainView");
+  const detailView = document.getElementById("attractionDetailView");
+  if (mainView) mainView.classList.remove("hidden");
+  if (detailView) detailView.classList.add("hidden");
+}
+
+// 9. EDICIÓN
+function editAttraction(id) {
+  const item = allAttractionsCache.find(a => a.id === id);
+  if (!item) return;
+
+  if (item.ownerId !== currentUserId) {
+    alert("Solo la persona que registró este sitio puede editarlo.");
+    return;
+  }
+
+  currentEditingId = id;
+
+  document.getElementById("attractionId").value = item.attractionId || "";
+  document.getElementById("name").value = item.name || "";
+  document.getElementById("type").value = item.type || "";
+  document.getElementById("department").value = item.department || "";
+  
+  const deptSelect = document.getElementById("department");
+  deptSelect.dispatchEvent(new Event("change"));
+  
+  document.getElementById("municipality").value = item.municipality || "";
+  document.getElementById("location").value = item.location || "";
+  document.getElementById("gps").value = item.gps || "";
+  document.getElementById("period").value = item.period || "";
+  document.getElementById("openingHours").value = item.openingHours || "";
+  document.getElementById("admissionFee").value = item.admissionFee || "";
+  document.getElementById("accessibility").value = item.accessibility || "";
+  document.getElementById("contact").value = item.contact || "";
+  document.getElementById("qrCode").value = item.qrCode || "";
+  document.getElementById("services").value = item.services || "";
+  document.getElementById("description").value = item.description || "";
+
+  if (item.photo) {
+    const preview = document.getElementById("photoPreview");
+    preview.src = item.photo;
+    preview.dataset.currentSrc = item.photo;
+    preview.classList.remove("hidden");
+  }
+
+  closeDetailView();
+  switchTab("register");
+  document.getElementById("btnSubmit").innerText = "🔄 Actualizar Atracción";
+}
+
 async function deleteAttraction(id) {
-  if (confirm("Are you sure you want to delete this record from the cloud?")) {
+  const item = allAttractionsCache.find(a => a.id === id);
+  if (item && item.ownerId !== currentUserId) {
+    alert("Solo la persona que registró este sitio puede eliminarlo.");
+    return;
+  }
+
+  if (confirm("¿Estás seguro de que deseas eliminar esta atracción?")) {
     await db.collection("attractions").doc(id).delete();
+    closeDetailView();
   }
 }
 
-// 9. STATISTICS
+// 10. ESTADÍSTICAS
 function renderStatistics(list) {
   const deptCounts = {};
   const typeCounts = {};
@@ -406,14 +553,14 @@ function renderStatistics(list) {
   });
 
   const ctxDept = document.getElementById("chartDept");
-  if (ctxDept) {
+  if (ctxDept && typeof Chart !== "undefined") {
     if (chartDeptInstance) chartDeptInstance.destroy();
     chartDeptInstance = new Chart(ctxDept.getContext("2d"), {
       type: "bar",
       data: {
         labels: Object.keys(deptCounts),
         datasets: [{
-          label: "Attractions",
+          label: "Atracciones",
           data: Object.values(deptCounts),
           backgroundColor: "#0284c7",
           borderRadius: 8
@@ -428,7 +575,7 @@ function renderStatistics(list) {
   }
 
   const ctxType = document.getElementById("chartType");
-  if (ctxType) {
+  if (ctxType && typeof Chart !== "undefined") {
     if (chartTypeInstance) chartTypeInstance.destroy();
     chartTypeInstance = new Chart(ctxType.getContext("2d"), {
       type: "doughnut",
