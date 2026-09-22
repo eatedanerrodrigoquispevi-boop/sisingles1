@@ -102,8 +102,8 @@ async function getAttractions() {
   }
 }
 
-// 2. TABS NAVIGATION
-async function switchTab(tabId) {
+// 2. TABS NAVIGATION (Corregido para usar la memoria caché instantánea)
+function switchTab(tabId) {
   document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
   document.querySelectorAll(".nav-btn").forEach(el => {
     el.classList.remove("bg-sky-600/30", "text-sky-300", "font-semibold", "border", "border-sky-500/30");
@@ -119,13 +119,11 @@ async function switchTab(tabId) {
     activeNav.classList.remove("text-slate-300");
   }
 
-  const list = await getAttractions();
-  allAttractionsCache = list;
-
+  // Ejecución directa usando los datos en tiempo real acumulados
   if (tabId === "dashboard") {
-    updateDashboardMetrics(list);
+    updateDashboardMetrics(allAttractionsCache);
   } else if (tabId === "map-view") {
-    renderFullMap(list);
+    renderFullMap(allAttractionsCache);
   } else if (tabId === "register") {
     if (!map) {
       setTimeout(initRegisterMap, 100);
@@ -134,12 +132,11 @@ async function switchTab(tabId) {
     }
   } else if (tabId === "list") {
     closeDetailView();
-    renderAttractionsList(list);
+    renderAttractionsList(allAttractionsCache);
   } else if (tabId === "stats") {
-    renderStatistics(list);
+    renderStatistics(allAttractionsCache);
   }
 }
-
 // 3. DASHBOARD METRICS
 function updateDashboardMetrics(list) {
   const totalElem = document.getElementById("metric-total");
@@ -380,22 +377,20 @@ function resetForm() {
   if (btnSubmit) btnSubmit.innerText = "💾 Save Attraction";
 }
 
-// 7. LISTA DE ATRACCIONES (Muestra todos los registros de la base de datos sin excepción)
+// 7. LISTA DE ATRACCIONES (Forzado de despliegue)
 function renderAttractionsList(list) {
   const container = document.getElementById("attractionsList");
   const searchInput = document.getElementById("searchBar");
   if (!container) return;
 
-  // Garantiza que la lista en memoria siempre tenga los datos recibidos
-  allAttractionsCache = list && list.length > 0 ? list : allAttractionsCache;
+  const dataToRender = (list && list.length > 0) ? list : allAttractionsCache;
 
-  // Escuchar el buscador
   if (searchInput && !searchInput.dataset.listening) {
     searchInput.dataset.listening = "true";
     searchInput.addEventListener("input", (e) => {
       const query = e.target.value.toLowerCase().trim();
       const filtered = allAttractionsCache.filter(item => {
-        const name = (item.name || item.nombre || "").toLowerCase();
+        const name = (item.name || item.nombre || item.attractionName || "").toLowerCase();
         const muni = (item.municipality || item.municipio || "").toLowerCase();
         const dept = (item.department || item.departamento || "").toLowerCase();
         const type = (item.type || item.tipo || "").toLowerCase();
@@ -405,7 +400,7 @@ function renderAttractionsList(list) {
     });
   }
 
-  displayCards(allAttractionsCache);
+  displayCards(dataToRender);
 }
 
 function displayCards(list) {
