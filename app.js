@@ -21,7 +21,7 @@ let chartTypeInstance = null;
 let currentEditingId = null;
 let allAttractionsCache = [];
 
-// Identificador único para el creador (Guardado localmente)
+// Identificador único para el creador
 function getUserId() {
   let uid = localStorage.getItem("bolivia_tour_uid");
   if (!uid) {
@@ -40,10 +40,10 @@ function updateOnlineStatus() {
   
   if (navigator.onLine) {
     if (dot) dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-    if (text) text.innerText = "Sincronización Activa";
+    if (text) text.innerText = "Cloud Sync Active";
   } else {
     if (dot) dot.className = "w-2 h-2 rounded-full bg-amber-500";
-    if (text) text.innerText = "Modo Offline (Almacenamiento Local)";
+    if (text) text.innerText = "Offline Mode (Local Storage)";
   }
 }
 
@@ -58,7 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setupGeolocateButton();
 
   if (typeof db !== "undefined") {
-    db.collection("attractions").onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
+    // Escuchar cambios en tiempo real desde Firestore
+    db.collection("attractions").onSnapshot((snapshot) => {
       const attractions = [];
       snapshot.forEach(doc => {
         attractions.push({ id: doc.id, ...doc.data() });
@@ -67,15 +68,20 @@ document.addEventListener("DOMContentLoaded", () => {
       allAttractionsCache = attractions;
       updateDashboardMetrics(attractions);
 
-      if (!document.getElementById("tab-map-view").classList.contains("hidden")) {
+      const mapTab = document.getElementById("tab-map-view");
+      if (mapTab && !mapTab.classList.contains("hidden")) {
         renderFullMap(attractions);
       }
-      if (!document.getElementById("tab-list").classList.contains("hidden")) {
+      const listTab = document.getElementById("tab-list");
+      if (listTab && !listTab.classList.contains("hidden")) {
         renderAttractionsList(attractions);
       }
-      if (!document.getElementById("tab-stats").classList.contains("hidden")) {
+      const statsTab = document.getElementById("tab-stats");
+      if (statsTab && !statsTab.classList.contains("hidden")) {
         renderStatistics(attractions);
       }
+    }, (error) => {
+      console.error("Error al obtener atracciones de Firestore:", error);
     });
   }
 
@@ -91,7 +97,7 @@ async function getAttractions() {
     snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
     return list;
   } catch(e) {
-    console.error("Error al leer caché:", e);
+    console.error("Error al leer caché/servidor:", e);
     return [];
   }
 }
@@ -139,7 +145,7 @@ function updateDashboardMetrics(list) {
   const totalElem = document.getElementById("metric-total");
   if (totalElem) totalElem.innerText = list.length;
 
-  const depts = new Set(list.map(item => item.department).filter(Boolean));
+  const depts = new Set(list.map(item => item.department || item.departamento).filter(Boolean));
   const deptsElem = document.getElementById("metric-depts");
   if (deptsElem) deptsElem.innerText = depts.size;
 }
@@ -157,16 +163,23 @@ function renderFullMap(list) {
   fullMapMarkers = [];
 
   list.forEach(item => {
-    if (item.gps && item.gps.includes(",")) {
-      const [lat, lng] = item.gps.split(",").map(n => parseFloat(n.trim()));
+    const gpsVal = item.gps || item.coordenadas;
+    if (gpsVal && gpsVal.includes(",")) {
+      const [lat, lng] = gpsVal.split(",").map(n => parseFloat(n.trim()));
       if (!isNaN(lat) && !isNaN(lng)) {
         const m = L.marker([lat, lng]).addTo(fullMap);
+        const nameVal = item.name || item.nombre || "Atracción";
+        const typeVal = item.type || item.tipo || "Atracción";
+        const muniVal = item.municipality || item.municipio || "";
+        const deptVal = item.department || item.departamento || "";
+        const photoVal = item.photo || item.foto || "";
+
         m.bindPopup(`
           <div style="font-size:12px; font-family: sans-serif;">
-            <b style="color:#0284c7; font-size: 14px;">${item.name}</b><br>
-            <span style="color: #64748b;">${item.type || 'Atracción'}</span><br>
-            <b>Ubicación:</b> ${item.municipality || ""}, ${item.department || ""}<br>
-            ${item.photo ? `<img src="${item.photo}" style="width:100%; max-height:80px; object-fit:cover; margin-top:5px; border-radius:6px;">` : ''}
+            <b style="color:#0284c7; font-size: 14px;">${nameVal}</b><br>
+            <span style="color: #64748b;">${typeVal}</span><br>
+            <b>Ubicación:</b> ${muniVal}, ${deptVal}<br>
+            ${photoVal ? `<img src="${photoVal}" style="width:100%; max-height:80px; object-fit:cover; margin-top:5px; border-radius:6px;">` : ''}
           </div>
         `);
         fullMapMarkers.push(m);
@@ -239,7 +252,7 @@ function setupDepartmentChangeListener() {
 
   deptSelect.addEventListener("change", (e) => {
     const selectedDept = e.target.value.trim();
-    muniSelect.innerHTML = '<option value="">Selecciona un Municipio...</option>';
+    muniSelect.innerHTML = '<option value="">Select a Municipality...</option>';
 
     if (selectedDept && municipiosPorDepartamento[selectedDept]) {
       muniSelect.disabled = false;
@@ -251,7 +264,7 @@ function setupDepartmentChangeListener() {
       });
     } else {
       muniSelect.disabled = true;
-      muniSelect.innerHTML = '<option value="">Primero selecciona un departamento</option>';
+      muniSelect.innerHTML = '<option value="">First select a department</option>';
     }
   });
 }
@@ -324,7 +337,7 @@ if (form) {
         currentEditingId = null;
       } else {
         data.createdAt = new Date().toISOString();
-        data.ownerId = currentUserId; // Guarda la autoría
+        data.ownerId = currentUserId;
         await db.collection("attractions").add(data);
         alert("¡Atracción registrada con éxito!");
       }
@@ -335,7 +348,7 @@ if (form) {
       console.error("Error al guardar: ", error);
       alert("Error al guardar: " + error.message);
     } finally {
-      btn.innerText = "💾 Guardar Atracción";
+      btn.innerText = "💾 Save Attraction";
       btn.disabled = false;
     }
   });
@@ -355,7 +368,7 @@ function resetForm() {
   const muniSelect = document.getElementById("municipality");
   if (muniSelect) {
     muniSelect.disabled = true;
-    muniSelect.innerHTML = '<option value="">Primero selecciona un departamento</option>';
+    muniSelect.innerHTML = '<option value="">First select a department</option>';
   }
 
   if (marker && map) {
@@ -364,61 +377,73 @@ function resetForm() {
   }
 
   const btnSubmit = document.getElementById("btnSubmit");
-  if (btnSubmit) btnSubmit.innerText = "💾 Guardar Atracción";
+  if (btnSubmit) btnSubmit.innerText = "💾 Save Attraction";
 }
 
-// 7. LISTA DE ATRACCIONES (BUSCADOR + TARJETAS LIMPIAS)
+// 7. LISTA DE ATRACCIONES CON BUSCADOR
 function renderAttractionsList(list) {
   const container = document.getElementById("attractionsList");
   const searchInput = document.getElementById("searchBar");
   if (!container) return;
 
+  allAttractionsCache = list || [];
+
   if (searchInput && !searchInput.dataset.listening) {
     searchInput.dataset.listening = "true";
     searchInput.addEventListener("input", (e) => {
       const query = e.target.value.toLowerCase().trim();
-      const filtered = allAttractionsCache.filter(item => 
-        (item.name && item.name.toLowerCase().includes(query)) ||
-        (item.municipality && item.municipality.toLowerCase().includes(query)) ||
-        (item.type && item.type.toLowerCase().includes(query))
-      );
+      const filtered = allAttractionsCache.filter(item => {
+        const name = (item.name || item.nombre || "").toLowerCase();
+        const muni = (item.municipality || item.municipio || "").toLowerCase();
+        const dept = (item.department || item.departamento || "").toLowerCase();
+        const type = (item.type || item.tipo || "").toLowerCase();
+        return name.includes(query) || muni.includes(query) || dept.includes(query) || type.includes(query);
+      });
       displayCards(filtered);
     });
   }
 
-  displayCards(list);
+  displayCards(allAttractionsCache);
 }
 
 function displayCards(list) {
   const container = document.getElementById("attractionsList");
   if (!container) return;
 
-  if (list.length === 0) {
+  if (!list || list.length === 0) {
     container.innerHTML = `
       <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200">
         <p class="text-4xl mb-2">📂</p>
-        <p class="text-slate-500 font-medium">No se encontraron atracciones.</p>
+        <p class="text-slate-500 font-medium">No attractions found.</p>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = list.map(item => `
-    <div onclick="openDetailView('${item.id}')" class="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer overflow-hidden flex flex-col justify-between">
-      <div>
-        <div class="h-44 w-full bg-slate-100 relative overflow-hidden">
-          ${item.photo 
-            ? `<img src="${item.photo}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${item.name}">` 
-            : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">Sin Fotografía</div>`}
-          ${item.type ? `<span class="absolute top-3 right-3 bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">${item.type}</span>` : ''}
-        </div>
-        <div class="p-4">
-          <h3 class="text-lg font-bold text-slate-800 group-hover:text-sky-600 transition line-clamp-1">${item.name}</h3>
-          <p class="text-xs text-slate-400 mt-1">📍 ${item.municipality || 'N/A'}, ${item.department || 'N/A'}</p>
+  container.innerHTML = list.map(item => {
+    const nameVal = item.name || item.nombre || "Sin Nombre";
+    const typeVal = item.type || item.tipo || "";
+    const muniVal = item.municipality || item.municipio || "N/A";
+    const deptVal = item.department || item.departamento || "N/A";
+    const photoVal = item.photo || item.foto || "";
+
+    return `
+      <div onclick="openDetailView('${item.id}')" class="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer overflow-hidden flex flex-col justify-between">
+        <div>
+          <div class="h-44 w-full bg-slate-100 relative overflow-hidden">
+            ${photoVal 
+              ? `<img src="${photoVal}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="${nameVal}">` 
+              : `<div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">No Image Available</div>`}
+            ${typeVal ? `<span class="absolute top-3 right-3 bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">${typeVal}</span>` : ''}
+          </div>
+          <div class="p-4">
+            <h3 class="text-lg font-bold text-slate-800 group-hover:text-sky-600 transition line-clamp-1">${nameVal}</h3>
+            <p class="text-xs text-slate-400 mt-1">📍 ${muniVal}, ${deptVal}</p>
+          </div>
         </div>
       </div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 // 8. VISTA DETALLADA AL HACER CLIC
@@ -430,42 +455,59 @@ function openDetailView(id) {
   const detailView = document.getElementById("attractionDetailView");
   const detailContent = document.getElementById("detailContent");
 
-  const isOwner = item.ownerId === currentUserId;
+  // Si no tiene ownerId registrado (atracciones antiguas), permite editar
+  const isOwner = !item.ownerId || item.ownerId === currentUserId;
+
+  const nameVal = item.name || item.nombre || "Sin Nombre";
+  const typeVal = item.type || item.tipo || "N/A";
+  const muniVal = item.municipality || item.municipio || "N/A";
+  const deptVal = item.department || item.departamento || "N/A";
+  const locVal = item.location || item.ubicacion || "";
+  const photoVal = item.photo || item.foto || "";
+  const descVal = item.description || item.descripcion || "No description provided.";
+  const attrIdVal = item.attractionId || item.id_atraccion || 'AT-000';
+  const periodVal = item.period || item.epoca || 'N/A';
+  const hoursVal = item.openingHours || item.horarios || 'N/A';
+  const feeVal = item.admissionFee || item.costo || 'N/A';
+  const accessVal = item.accessibility || item.accesibilidad || 'N/A';
+  const contactVal = item.contact || item.contacto || 'N/A';
+  const servicesVal = item.services || item.servicios || 'N/A';
+  const gpsVal = item.gps || item.coordenadas || 'N/A';
 
   detailContent.innerHTML = `
     <div class="space-y-4">
-      ${item.photo ? `<img src="${item.photo}" class="w-full max-h-80 object-cover rounded-2xl border border-slate-200" alt="${item.name}">` : ''}
+      ${photoVal ? `<img src="${photoVal}" class="w-full max-h-80 object-cover rounded-2xl border border-slate-200" alt="${nameVal}">` : ''}
       
       <div class="flex justify-between items-start gap-4">
         <div>
-          <span class="bg-sky-100 text-sky-800 text-xs font-bold px-3 py-1 rounded-full uppercase">${item.attractionId || 'AT-000'}</span>
-          <h2 class="text-3xl font-extrabold text-slate-900 mt-2">${item.name}</h2>
-          <p class="text-sm text-slate-500 mt-1">📍 ${item.municipality || 'N/A'}, ${item.department || 'N/A'} ${item.location ? `— ${item.location}` : ''}</p>
+          <span class="bg-sky-100 text-sky-800 text-xs font-bold px-3 py-1 rounded-full uppercase">${attrIdVal}</span>
+          <h2 class="text-3xl font-extrabold text-slate-900 mt-2">${nameVal}</h2>
+          <p class="text-sm text-slate-500 mt-1">📍 ${muniVal}, ${deptVal} ${locVal ? `— ${locVal}` : ''}</p>
         </div>
 
         ${isOwner ? `
           <div class="flex gap-2">
             <button onclick="editAttraction('${item.id}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold px-3 py-2 rounded-xl transition">
-              ✏️ Editar
+              ✏️ Edit
             </button>
             <button onclick="deleteAttraction('${item.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-2 rounded-xl transition">
-              🗑️ Eliminar
+              🗑️ Delete
             </button>
           </div>
         ` : ''}
       </div>
 
-      <p class="text-slate-700 text-base leading-relaxed">${item.description || 'Sin descripción detallada.'}</p>
+      <p class="text-slate-700 text-base leading-relaxed">${descVal}</p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100 text-slate-700">
-        <div><b>Tipo:</b> ${item.type || 'N/A'}</div>
-        <div><b>Época Histórica:</b> ${item.period || 'N/A'}</div>
-        <div>⏰ <b>Horarios:</b> ${item.openingHours || 'N/A'}</div>
-        <div>💰 <b>Costo:</b> ${item.admissionFee || 'N/A'}</div>
-        <div>♿ <b>Accesibilidad:</b> ${item.accessibility || 'N/A'}</div>
-        <div>📞 <b>Contacto:</b> ${item.contact || 'N/A'}</div>
-        <div>🛠️ <b>Servicios:</b> ${item.services || 'N/A'}</div>
-        <div>🌐 <b>GPS:</b> ${item.gps || 'N/A'}</div>
+        <div><b>Type:</b> ${typeVal}</div>
+        <div><b>Historical Period:</b> ${periodVal}</div>
+        <div>⏰ <b>Opening Hours:</b> ${hoursVal}</div>
+        <div>💰 <b>Admission Fee:</b> ${feeVal}</div>
+        <div>♿ <b>Accessibility:</b> ${accessVal}</div>
+        <div>📞 <b>Contact:</b> ${contactVal}</div>
+        <div>🛠️ <b>Services:</b> ${servicesVal}</div>
+        <div>🌐 <b>GPS:</b> ${gpsVal}</div>
       </div>
     </div>
   `;
@@ -486,53 +528,54 @@ function editAttraction(id) {
   const item = allAttractionsCache.find(a => a.id === id);
   if (!item) return;
 
-  if (item.ownerId !== currentUserId) {
-    alert("Solo la persona que registró este sitio puede editarlo.");
+  if (item.ownerId && item.ownerId !== currentUserId) {
+    alert("You do not have permission to edit this attraction.");
     return;
   }
 
   currentEditingId = id;
 
-  document.getElementById("attractionId").value = item.attractionId || "";
-  document.getElementById("name").value = item.name || "";
-  document.getElementById("type").value = item.type || "";
-  document.getElementById("department").value = item.department || "";
+  document.getElementById("attractionId").value = item.attractionId || item.id_atraccion || "";
+  document.getElementById("name").value = item.name || item.nombre || "";
+  document.getElementById("type").value = item.type || item.tipo || "";
+  document.getElementById("department").value = item.department || item.departamento || "";
   
   const deptSelect = document.getElementById("department");
   deptSelect.dispatchEvent(new Event("change"));
   
-  document.getElementById("municipality").value = item.municipality || "";
-  document.getElementById("location").value = item.location || "";
-  document.getElementById("gps").value = item.gps || "";
-  document.getElementById("period").value = item.period || "";
-  document.getElementById("openingHours").value = item.openingHours || "";
-  document.getElementById("admissionFee").value = item.admissionFee || "";
-  document.getElementById("accessibility").value = item.accessibility || "";
-  document.getElementById("contact").value = item.contact || "";
+  document.getElementById("municipality").value = item.municipality || item.municipio || "";
+  document.getElementById("location").value = item.location || item.ubicacion || "";
+  document.getElementById("gps").value = item.gps || item.coordenadas || "";
+  document.getElementById("period").value = item.period || item.epoca || "";
+  document.getElementById("openingHours").value = item.openingHours || item.horarios || "";
+  document.getElementById("admissionFee").value = item.admissionFee || item.costo || "";
+  document.getElementById("accessibility").value = item.accessibility || item.accesibilidad || "";
+  document.getElementById("contact").value = item.contact || item.contacto || "";
   document.getElementById("qrCode").value = item.qrCode || "";
-  document.getElementById("services").value = item.services || "";
-  document.getElementById("description").value = item.description || "";
+  document.getElementById("services").value = item.services || item.servicios || "";
+  document.getElementById("description").value = item.description || item.descripcion || "";
 
-  if (item.photo) {
+  const photoVal = item.photo || item.foto;
+  if (photoVal) {
     const preview = document.getElementById("photoPreview");
-    preview.src = item.photo;
-    preview.dataset.currentSrc = item.photo;
+    preview.src = photoVal;
+    preview.dataset.currentSrc = photoVal;
     preview.classList.remove("hidden");
   }
 
   closeDetailView();
   switchTab("register");
-  document.getElementById("btnSubmit").innerText = "🔄 Actualizar Atracción";
+  document.getElementById("btnSubmit").innerText = "🔄 Update Attraction";
 }
 
 async function deleteAttraction(id) {
   const item = allAttractionsCache.find(a => a.id === id);
-  if (item && item.ownerId !== currentUserId) {
-    alert("Solo la persona que registró este sitio puede eliminarlo.");
+  if (item && item.ownerId && item.ownerId !== currentUserId) {
+    alert("You do not have permission to delete this attraction.");
     return;
   }
 
-  if (confirm("¿Estás seguro de que deseas eliminar esta atracción?")) {
+  if (confirm("Are you sure you want to delete this attraction?")) {
     await db.collection("attractions").doc(id).delete();
     closeDetailView();
   }
@@ -544,11 +587,13 @@ function renderStatistics(list) {
   const typeCounts = {};
 
   list.forEach(item => {
-    if (item.department) {
-      deptCounts[item.department] = (deptCounts[item.department] || 0) + 1;
+    const dept = item.department || item.departamento;
+    const type = item.type || item.tipo;
+    if (dept) {
+      deptCounts[dept] = (deptCounts[dept] || 0) + 1;
     }
-    if (item.type) {
-      typeCounts[item.type] = (typeCounts[item.type] || 0) + 1;
+    if (type) {
+      typeCounts[type] = (typeCounts[type] || 0) + 1;
     }
   });
 
@@ -560,7 +605,7 @@ function renderStatistics(list) {
       data: {
         labels: Object.keys(deptCounts),
         datasets: [{
-          label: "Atracciones",
+          label: "Attractions",
           data: Object.values(deptCounts),
           backgroundColor: "#0284c7",
           borderRadius: 8
