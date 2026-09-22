@@ -455,8 +455,8 @@ function openDetailView(id) {
   const detailView = document.getElementById("attractionDetailView");
   const detailContent = document.getElementById("detailContent");
 
-  // Si no tiene ownerId registrado (atracciones antiguas), permite editar
-  const isOwner = !item.ownerId || item.ownerId === currentUserId;
+  // VERIFICACIÓN ESTRICTA DE AUTORÍA: Solo si coincide el ownerId del creador
+  const isOwner = item.ownerId && item.ownerId === currentUserId;
 
   const nameVal = item.name || item.nombre || "Sin Nombre";
   const typeVal = item.type || item.tipo || "N/A";
@@ -494,7 +494,11 @@ function openDetailView(id) {
               🗑️ Delete
             </button>
           </div>
-        ` : ''}
+        ` : `
+          <div class="text-xs bg-slate-100 text-slate-500 px-3 py-1.5 rounded-xl border border-slate-200">
+            🔒 Solo lectura
+          </div>
+        `}
       </div>
 
       <p class="text-slate-700 text-base leading-relaxed">${descVal}</p>
@@ -516,20 +520,13 @@ function openDetailView(id) {
   detailView.classList.remove("hidden");
 }
 
-function closeDetailView() {
-  const mainView = document.getElementById("catalogMainView");
-  const detailView = document.getElementById("attractionDetailView");
-  if (mainView) mainView.classList.remove("hidden");
-  if (detailView) detailView.classList.add("hidden");
-}
-
-// 9. EDICIÓN
+// 9. EDICIÓN Y ELIMINACIÓN CON CONTROL DE PERMISOS
 function editAttraction(id) {
   const item = allAttractionsCache.find(a => a.id === id);
   if (!item) return;
 
-  if (item.ownerId && item.ownerId !== currentUserId) {
-    alert("You do not have permission to edit this attraction.");
+  if (!item.ownerId || item.ownerId !== currentUserId) {
+    alert("You can only edit attractions created from this device/user.");
     return;
   }
 
@@ -570,8 +567,8 @@ function editAttraction(id) {
 
 async function deleteAttraction(id) {
   const item = allAttractionsCache.find(a => a.id === id);
-  if (item && item.ownerId && item.ownerId !== currentUserId) {
-    alert("You do not have permission to delete this attraction.");
+  if (!item || !item.ownerId || item.ownerId !== currentUserId) {
+    alert("You can only delete attractions created from this device/user.");
     return;
   }
 
