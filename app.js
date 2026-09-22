@@ -21,7 +21,7 @@ let chartTypeInstance = null;
 let currentEditingId = null;
 let allAttractionsCache = [];
 
-// Identificador único para el creador
+// Identificador único de usuario local
 function getUserId() {
   let uid = localStorage.getItem("bolivia_tour_uid");
   if (!uid) {
@@ -50,7 +50,7 @@ function updateOnlineStatus() {
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 
-// 1. INITIALIZATION
+// 1. INICIALIZACIÓN Y LECTURA DE FIRESTORE
 document.addEventListener("DOMContentLoaded", () => {
   updateOnlineStatus();
   setupDepartmentChangeListener();
@@ -58,51 +58,47 @@ document.addEventListener("DOMContentLoaded", () => {
   setupGeolocateButton();
 
   if (typeof db !== "undefined") {
-    // Escuchar cambios en tiempo real desde Firestore
-    db.collection("attractions").onSnapshot((snapshot) => {
-      const attractions = [];
-      snapshot.forEach(doc => {
-        attractions.push({ id: doc.id, ...doc.data() });
-      });
-
-      allAttractionsCache = attractions;
-      updateDashboardMetrics(attractions);
-
-      const mapTab = document.getElementById("tab-map-view");
-      if (mapTab && !mapTab.classList.contains("hidden")) {
-        renderFullMap(attractions);
-      }
-      const listTab = document.getElementById("tab-list");
-      if (listTab && !listTab.classList.contains("hidden")) {
-        renderAttractionsList(attractions);
-      }
-      const statsTab = document.getElementById("tab-stats");
-      if (statsTab && !statsTab.classList.contains("hidden")) {
-        renderStatistics(attractions);
-      }
-    }, (error) => {
-      console.error("Error al obtener atracciones de Firestore:", error);
-    });
+    // Escuchar la colección principal
+    listenToCollection("attractions");
   }
 
   switchTab("dashboard");
 });
 
-// GET ATTRACTIONS FROM FIRESTORE
-async function getAttractions() {
-  if (typeof db === "undefined") return [];
-  try {
-    const snapshot = await db.collection("attractions").get();
+function listenToCollection(collectionName) {
+  db.collection(collectionName).onSnapshot((snapshot) => {
+    // Si la colección especificada no tiene datos, intentar con 'atracciones'
+    if (snapshot.empty && collectionName === "attractions") {
+      listenToCollection("atracciones");
+      return;
+    }
+
     const list = [];
-    snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() }));
-    return list;
-  } catch(e) {
-    console.error("Error al leer caché/servidor:", e);
-    return [];
-  }
+    snapshot.forEach(doc => {
+      list.push({ id: doc.id, ...doc.data() });
+    });
+
+    allAttractionsCache = list;
+
+    // Actualizar todas las vistas en tiempo real
+    updateDashboardMetrics(list);
+    renderAttractionsList(list);
+
+    const mapTab = document.getElementById("tab-map-view");
+    if (mapTab && !mapTab.classList.contains("hidden")) {
+      renderFullMap(list);
+    }
+    
+    const statsTab = document.getElementById("tab-stats");
+    if (statsTab && !statsTab.classList.contains("hidden")) {
+      renderStatistics(list);
+    }
+  }, (error) => {
+    console.error("Error al conectar con Firestore:", error);
+  });
 }
 
-// 2. TABS NAVIGATION (Corregido para usar la memoria caché instantánea)
+// 2. NAVEGACIÓN ENTRE PESTAÑAS
 function switchTab(tabId) {
   document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
   document.querySelectorAll(".nav-btn").forEach(el => {
@@ -119,7 +115,6 @@ function switchTab(tabId) {
     activeNav.classList.remove("text-slate-300");
   }
 
-  // Ejecución directa usando los datos en tiempo real acumulados
   if (tabId === "dashboard") {
     updateDashboardMetrics(allAttractionsCache);
   } else if (tabId === "map-view") {
@@ -137,7 +132,8 @@ function switchTab(tabId) {
     renderStatistics(allAttractionsCache);
   }
 }
-// 3. DASHBOARD METRICS
+
+// 3. METRICAS DASHBOARD
 function updateDashboardMetrics(list) {
   const totalElem = document.getElementById("metric-total");
   if (totalElem) totalElem.innerText = list.length;
@@ -147,7 +143,7 @@ function updateDashboardMetrics(list) {
   if (deptsElem) deptsElem.innerText = depts.size;
 }
 
-// 4. MAPS
+// 4. MAPAS
 function renderFullMap(list) {
   if (!fullMap) {
     fullMap = L.map("fullMap").setView([-16.2902, -63.5887], 5);
@@ -286,7 +282,7 @@ function setupPhotoPreview() {
   });
 }
 
-// 6. GUARDAR O EDITAR REGISTRO
+// 6. GUARDAR REGISTRO CON MARCA DE CREADOR
 const form = document.getElementById("attractionForm");
 if (form) {
   form.addEventListener("submit", async (e) => {
@@ -377,7 +373,7 @@ function resetForm() {
   if (btnSubmit) btnSubmit.innerText = "💾 Save Attraction";
 }
 
-// 7. LISTA DE ATRACCIONES (Forzado de despliegue)
+// 7. RENDERIZADO DE LISTA Y BÚSQUEDA MULTI-CAMPO
 function renderAttractionsList(list) {
   const container = document.getElementById("attractionsList");
   const searchInput = document.getElementById("searchBar");
@@ -418,21 +414,17 @@ function displayCards(list) {
   }
 
   container.innerHTML = list.map(item => {
-    // Busca cualquier variante de nombre que exista en la base de datos
-    const nameVal = item.name || item.nombre || item.attractionName || "Atracción sin nombre";
+    const nameVal = item.name || item.nombre || item.attractionName || "Atracción registrada";
     const typeVal = item.type || item.tipo || "";
     const muniVal = item.municipality || item.municipio || "";
     const deptVal = item.department || item.departamento || "";
     const photoVal = item.photo || item.foto || item.imageUrl || "";
 
-    // Construye la ubicación
-    let locationText = "Ubicación no especificada";
+    let locationText = "Bolivia";
     if (muniVal && deptVal) {
       locationText = `${muniVal}, ${deptVal}`;
-    } else if (deptVal) {
-      locationText = deptVal;
-    } else if (muniVal) {
-      locationText = muniVal;
+    } else if (deptVal || muniVal) {
+      locationText = deptVal || muniVal;
     }
 
     return `
@@ -454,7 +446,7 @@ function displayCards(list) {
   }).join("");
 }
 
-// 8. VISTA DETALLADA AL HACER CLIC
+// 8. VISTA DETALLADA Y CONTROL ESTRICTO DE AUTORÍA
 function openDetailView(id) {
   const item = allAttractionsCache.find(a => a.id === id);
   if (!item) return;
@@ -463,16 +455,16 @@ function openDetailView(id) {
   const detailView = document.getElementById("attractionDetailView");
   const detailContent = document.getElementById("detailContent");
 
-  // VERIFICACIÓN ESTRICTA DE AUTORÍA: Solo si coincide el ownerId del creador
-  const isOwner = item.ownerId && item.ownerId === currentUserId;
+  // Validación estricta: Solo permite editar si existe el ownerId y coincide con la máquina actual
+  const isOwner = Boolean(item.ownerId && item.ownerId === currentUserId);
 
-  const nameVal = item.name || item.nombre || "Sin Nombre";
+  const nameVal = item.name || item.nombre || item.attractionName || "Sin Nombre";
   const typeVal = item.type || item.tipo || "N/A";
   const muniVal = item.municipality || item.municipio || "N/A";
   const deptVal = item.department || item.departamento || "N/A";
   const locVal = item.location || item.ubicacion || "";
-  const photoVal = item.photo || item.foto || "";
-  const descVal = item.description || item.descripcion || "No description provided.";
+  const photoVal = item.photo || item.foto || item.imageUrl || "";
+  const descVal = item.description || item.descripcion || "Sin descripción disponible.";
   const attrIdVal = item.attractionId || item.id_atraccion || 'AT-000';
   const periodVal = item.period || item.epoca || 'N/A';
   const hoursVal = item.openingHours || item.horarios || 'N/A';
@@ -503,7 +495,7 @@ function openDetailView(id) {
             </button>
           </div>
         ` : `
-          <div class="text-xs bg-slate-100 text-slate-500 px-3 py-1.5 rounded-xl border border-slate-200">
+          <div class="text-xs bg-slate-100 text-slate-500 font-semibold px-3 py-2 rounded-xl border border-slate-200 flex items-center gap-1">
             🔒 Solo lectura
           </div>
         `}
@@ -528,13 +520,20 @@ function openDetailView(id) {
   detailView.classList.remove("hidden");
 }
 
-// 9. EDICIÓN Y ELIMINACIÓN CON CONTROL DE PERMISOS
+function closeDetailView() {
+  const mainView = document.getElementById("catalogMainView");
+  const detailView = document.getElementById("attractionDetailView");
+  if (mainView) mainView.classList.remove("hidden");
+  if (detailView) detailView.classList.add("hidden");
+}
+
+// 9. RESTRICCIÓN DE EDICIÓN Y ELIMINACIÓN
 function editAttraction(id) {
   const item = allAttractionsCache.find(a => a.id === id);
   if (!item) return;
 
   if (!item.ownerId || item.ownerId !== currentUserId) {
-    alert("You can only edit attractions created from this device/user.");
+    alert("No tienes permisos para editar esta atracción.");
     return;
   }
 
@@ -576,11 +575,11 @@ function editAttraction(id) {
 async function deleteAttraction(id) {
   const item = allAttractionsCache.find(a => a.id === id);
   if (!item || !item.ownerId || item.ownerId !== currentUserId) {
-    alert("You can only delete attractions created from this device/user.");
+    alert("No tienes permisos para eliminar esta atracción.");
     return;
   }
 
-  if (confirm("Are you sure you want to delete this attraction?")) {
+  if (confirm("¿Estás seguro de que deseas eliminar esta atracción?")) {
     await db.collection("attractions").doc(id).delete();
     closeDetailView();
   }
@@ -610,7 +609,7 @@ function renderStatistics(list) {
       data: {
         labels: Object.keys(deptCounts),
         datasets: [{
-          label: "Attractions",
+          label: "Atracciones",
           data: Object.values(deptCounts),
           backgroundColor: "#0284c7",
           borderRadius: 8
